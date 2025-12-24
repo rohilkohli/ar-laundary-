@@ -34,25 +34,11 @@ export default function AiAssistant() {
     const updateAiMessage = (text: string, links?: GroundingLink[]) => {
       setConversation(prev => {
         const updated = [...prev];
-        const lastIndex = updated.length - 1;
-        const existingIndex = aiMessageIndexRef.current ?? lastIndex;
-        const hasValidExisting = existingIndex >= 0 && existingIndex <= lastIndex && updated[existingIndex]?.role === 'ai';
-
-        let aiIndex = hasValidExisting ? existingIndex : -1;
-
-        if (aiIndex === -1) {
-          const lastIsAi = lastIndex >= 0 && updated[lastIndex]?.role === 'ai';
-          if (lastIsAi) {
-            aiIndex = lastIndex;
-          } else {
-            updated.push({ role: 'ai' as const, text: '' });
-            aiIndex = updated.length - 1;
-          }
+        const aiIndex = aiMessageIndexRef.current ?? updated.length - 1;
+        if (aiIndex < 0 || aiIndex >= updated.length || updated[aiIndex]?.role !== 'ai') {
+          return updated;
         }
-
-        const message = { role: 'ai' as const, text, ...(links && links.length ? { links } : {}) };
-        updated[aiIndex] = message;
-        aiMessageIndexRef.current = aiIndex;
+        updated[aiIndex] = { role: 'ai' as const, text, ...(links && links.length ? { links } : {}) };
         return updated;
       });
     };
@@ -96,11 +82,7 @@ export default function AiAssistant() {
         }
       }
 
-      updateAiMessage(accumulatedText || "I'm thinking...", groundingLinks);
-
-      if (!accumulatedText) {
-        updateAiMessage("I'm sorry, I couldn't process that request.", groundingLinks);
-      }
+      updateAiMessage(accumulatedText || "I'm sorry, I couldn't process that request.", groundingLinks);
     } catch (error) {
       console.error(error);
       updateAiMessage("I'm experiencing a technical glitch. Please try again in a moment.");
