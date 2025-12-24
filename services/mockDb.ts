@@ -8,11 +8,22 @@ const ORDERS_KEY = 'dhobighat_orders';
 // Helper to simulate network delay
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+const safeParse = <T>(key: string, fallback: T): T => {
+  const raw = localStorage.getItem(key);
+  if (!raw) return fallback;
+  try {
+    return JSON.parse(raw);
+  } catch (error) {
+    console.error(`Failed to parse ${key}`, error);
+    localStorage.removeItem(key);
+    return fallback;
+  }
+};
+
 // --- Auth Simulation ---
 export const mockLogin = async (email: string, role: UserRole): Promise<User> => {
   await delay(800);
-  const usersStr = localStorage.getItem(USERS_KEY);
-  let users: User[] = usersStr ? JSON.parse(usersStr) : [];
+  let users = safeParse<User[]>(USERS_KEY, []);
   
   let user = users.find(u => u.email === email);
   
@@ -41,8 +52,7 @@ export const mockLogin = async (email: string, role: UserRole): Promise<User> =>
 // --- Orders ---
 export const getOrders = async (userId?: string): Promise<Order[]> => {
   await delay(500);
-  const ordersStr = localStorage.getItem(ORDERS_KEY);
-  const orders: Order[] = ordersStr ? JSON.parse(ordersStr) : [];
+  const orders = safeParse<Order[]>(ORDERS_KEY, []);
   
   if (userId) {
     // If userId is provided (Customer view), filter by user
@@ -54,8 +64,7 @@ export const getOrders = async (userId?: string): Promise<Order[]> => {
 
 export const createOrder = async (order: Omit<Order, 'id' | 'createdAt' | 'status' | 'deliveryDate'>): Promise<Order> => {
   await delay(1000);
-  const ordersStr = localStorage.getItem(ORDERS_KEY);
-  const orders: Order[] = ordersStr ? JSON.parse(ordersStr) : [];
+  const orders = safeParse<Order[]>(ORDERS_KEY, []);
 
   // Calculate delivery date (Standard 2 days later)
   const pickup = new Date(order.pickupDate);
@@ -77,8 +86,7 @@ export const createOrder = async (order: Omit<Order, 'id' | 'createdAt' | 'statu
 
 export const updateOrderStatus = async (orderId: string, status: OrderStatus): Promise<void> => {
   await delay(600);
-  const ordersStr = localStorage.getItem(ORDERS_KEY);
-  let orders: Order[] = ordersStr ? JSON.parse(ordersStr) : [];
+  let orders = safeParse<Order[]>(ORDERS_KEY, []);
   
   orders = orders.map(o => o.id === orderId ? { ...o, status } : o);
   localStorage.setItem(ORDERS_KEY, JSON.stringify(orders));
@@ -92,8 +100,7 @@ export const getPricing = async () => {
 // --- Address Management ---
 export const addAddress = async (userId: string, address: Address): Promise<User> => {
     await delay(500);
-    const usersStr = localStorage.getItem(USERS_KEY);
-    let users: User[] = usersStr ? JSON.parse(usersStr) : [];
+    let users = safeParse<User[]>(USERS_KEY, []);
     
     users = users.map(u => {
         if (u.id === userId) {

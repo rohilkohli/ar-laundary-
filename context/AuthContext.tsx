@@ -21,7 +21,12 @@ export const AuthProvider = ({ children }: { children?: React.ReactNode }) => {
     // Check local storage for persisted session
     const storedUser = localStorage.getItem('dhobighat_session');
     if (storedUser) {
-      setUser(JSON.parse(storedUser));
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch (error) {
+        console.error('Failed to parse stored session', error);
+        localStorage.removeItem('dhobighat_session');
+      }
     }
     setLoading(false);
   }, []);
