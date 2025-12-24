@@ -2,6 +2,9 @@ import React, { useRef, useState } from 'react';
 import { GoogleGenAI } from "@google/genai";
 import { Sparkles, Send, ExternalLink, Bot, User as UserIcon } from 'lucide-react';
 
+const STREAM_UPDATE_THROTTLE_MS = 100;
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.API_KEY;
+
 interface GroundingLink {
   uri: string;
   title: string;
@@ -54,8 +57,14 @@ export default function AiAssistant() {
       });
     };
 
+    if (!GEMINI_API_KEY) {
+      updateAiMessage("Gemini API key is missing. Please set GEMINI_API_KEY in your environment.");
+      setLoading(false);
+      return;
+    }
+
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
       const response = await ai.models.generateContentStream({
         model: 'gemini-3-flash-preview',
         contents: userMessage,
@@ -81,7 +90,7 @@ export default function AiAssistant() {
         }
 
         const now = performance.now();
-        if (now - lastStreamUpdateRef.current > 100) {
+        if (now - lastStreamUpdateRef.current > STREAM_UPDATE_THROTTLE_MS) {
           updateAiMessage(accumulatedText || "I'm thinking...", groundingLinks);
           lastStreamUpdateRef.current = now;
         }
