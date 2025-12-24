@@ -18,12 +18,32 @@ export default function AiAssistant() {
 
     const userMessage = prompt;
     setPrompt('');
-    setConversation(prev => [...prev, { role: 'user', text: userMessage }]);
     setLoading(true);
+    setConversation(prev => [...prev, { role: 'user', text: userMessage }, { role: 'ai', text: '' }]);
+
+    const updateAiMessage = (text: string, links?: GroundingLink[]) => {
+      setConversation(prev => {
+        const updated = [...prev];
+        let aiIndex = -1;
+        for (let i = updated.length - 1; i >= 0; i--) {
+          if (updated[i].role === 'ai') {
+            aiIndex = i;
+            break;
+          }
+        }
+        const message = { role: 'ai', text, ...(links && links.length ? { links } : {}) };
+        if (aiIndex === -1) {
+          updated.push(message);
+        } else {
+          updated[aiIndex] = message;
+        }
+        return updated;
+      });
+    };
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const response = await ai.models.generateContent({
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const response = await ai.models.generateContentStream({
         model: 'gemini-3-flash-preview',
         contents: userMessage,
         config: {
@@ -32,23 +52,28 @@ export default function AiAssistant() {
         },
       });
 
-      const text = response.text || "I'm sorry, I couldn't process that request.";
-      
-      // Extract grounding links if available
-      const links: GroundingLink[] = [];
-      const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
-      if (chunks) {
-        chunks.forEach((chunk: any) => {
-          if (chunk.web) {
-            links.push({ uri: chunk.web.uri, title: chunk.web.title });
-          }
-        });
+      let accumulatedText = '';
+      let groundingLinks: GroundingLink[] | undefined;
+
+      for await (const chunk of response) {
+        accumulatedText += chunk.text ?? '';
+
+        const chunks = chunk.candidates?.[0]?.groundingMetadata?.groundingChunks;
+        if (chunks && chunks.length) {
+          groundingLinks = chunks
+            .filter((chunk: any) => chunk.web)
+            .map((chunk: any) => ({ uri: chunk.web.uri, title: chunk.web.title }));
+        }
+
+        updateAiMessage(accumulatedText || "I'm thinking...", groundingLinks);
       }
 
-      setConversation(prev => [...prev, { role: 'ai', text, links }]);
+      if (!accumulatedText) {
+        updateAiMessage("I'm sorry, I couldn't process that request.", groundingLinks);
+      }
     } catch (error) {
       console.error(error);
-      setConversation(prev => [...prev, { role: 'ai', text: "I'm experiencing a technical glitch. Please try again in a moment." }]);
+      updateAiMessage("I'm experiencing a technical glitch. Please try again in a moment.");
     } finally {
       setLoading(false);
     }
