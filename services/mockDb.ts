@@ -15,7 +15,12 @@ const safeParse = <T>(key: string, fallback: T): T => {
   const raw = localStorage.getItem(key);
   if (!raw) return fallback;
   try {
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    if (parsed === null || typeof parsed !== 'object') {
+      localStorage.removeItem(key);
+      return fallback;
+    }
+    return parsed;
   } catch (error) {
     console.error(`Failed to parse ${key}`, error);
     localStorage.removeItem(key);
