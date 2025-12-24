@@ -1,5 +1,5 @@
 <div align="center">
-  <h1>ar-laundary-</h1>
+  <h1>ar-laundry-</h1>
 </div>
 
 Simple laundry booking and admin dashboard. Install dependencies and start dev server:
@@ -8,4 +8,3 @@ Simple laundry booking and admin dashboard. Install dependencies and start dev s
 npm install
 npm run dev
 ```
-
