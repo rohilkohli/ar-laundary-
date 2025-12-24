@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { GoogleGenAI } from "@google/genai";
 import { Sparkles, Send, ExternalLink, Bot, User as UserIcon } from 'lucide-react';
 
@@ -11,6 +11,7 @@ export default function AiAssistant() {
   const [prompt, setPrompt] = useState('');
   const [conversation, setConversation] = useState<{ role: 'user' | 'ai', text: string, links?: GroundingLink[] }[]>([]);
   const [loading, setLoading] = useState(false);
+  const aiMessageIndexRef = useRef<number | null>(null);
 
   const handleAsk = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -19,23 +20,33 @@ export default function AiAssistant() {
     const userMessage = prompt;
     setPrompt('');
     setLoading(true);
-    setConversation(prev => [...prev, { role: 'user', text: userMessage }, { role: 'ai', text: '' }]);
+    setConversation(prev => {
+      const updated = [...prev, { role: 'user', text: userMessage }, { role: 'ai', text: '' }];
+      aiMessageIndexRef.current = updated.length - 1;
+      return updated;
+    });
 
     const updateAiMessage = (text: string, links?: GroundingLink[]) => {
       setConversation(prev => {
         const updated = [...prev];
-        let aiIndex = -1;
-        for (let i = updated.length - 1; i >= 0; i--) {
-          if (updated[i].role === 'ai') {
-            aiIndex = i;
-            break;
+        let aiIndex = aiMessageIndexRef.current ?? -1;
+
+        if (aiIndex < 0 || aiIndex >= updated.length) {
+          for (let i = updated.length - 1; i >= 0; i--) {
+            if (updated[i].role === 'ai') {
+              aiIndex = i;
+              break;
+            }
           }
         }
+
         const message = { role: 'ai', text, ...(links && links.length ? { links } : {}) };
         if (aiIndex === -1) {
           updated.push(message);
+          aiMessageIndexRef.current = updated.length - 1;
         } else {
           updated[aiIndex] = message;
+          aiMessageIndexRef.current = aiIndex;
         }
         return updated;
       });
@@ -58,11 +69,13 @@ export default function AiAssistant() {
       for await (const chunk of response) {
         accumulatedText += chunk.text ?? '';
 
-        const chunks = chunk.candidates?.[0]?.groundingMetadata?.groundingChunks;
-        if (chunks && chunks.length) {
-          groundingLinks = chunks
-            .filter((chunk: any) => chunk.web)
-            .map((chunk: any) => ({ uri: chunk.web.uri, title: chunk.web.title }));
+        const groundingChunks = chunk.candidates?.[0]?.groundingMetadata?.groundingChunks;
+        if (groundingChunks && groundingChunks.length) {
+          const links = groundingChunks
+            .map(gc => gc.web)
+            .filter((web): web is { uri: string; title: string } => Boolean(web?.uri && web?.title))
+            .map(web => ({ uri: web.uri, title: web.title }));
+          groundingLinks = links.length ? links : groundingLinks;
         }
 
         updateAiMessage(accumulatedText || "I'm thinking...", groundingLinks);
