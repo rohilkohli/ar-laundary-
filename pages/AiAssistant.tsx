@@ -12,6 +12,7 @@ export default function AiAssistant() {
   const [conversation, setConversation] = useState<{ role: 'user' | 'ai', text: string, links?: GroundingLink[] }[]>([]);
   const [loading, setLoading] = useState(false);
   const aiMessageIndexRef = useRef<number | null>(null);
+  const lastStreamUpdateRef = useRef<number>(0);
 
   const handleAsk = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,6 +21,7 @@ export default function AiAssistant() {
     const userMessage = prompt;
     setPrompt('');
     setLoading(true);
+    lastStreamUpdateRef.current = 0;
     setConversation(prev => {
       const updated = [...prev, { role: 'user', text: userMessage }, { role: 'ai', text: '' }];
       aiMessageIndexRef.current = updated.length - 1;
@@ -29,25 +31,19 @@ export default function AiAssistant() {
     const updateAiMessage = (text: string, links?: GroundingLink[]) => {
       setConversation(prev => {
         const updated = [...prev];
-        let aiIndex = aiMessageIndexRef.current ?? -1;
+        let aiIndex = aiMessageIndexRef.current ?? updated.length - 1;
 
-        if (aiIndex < 0 || aiIndex >= updated.length) {
-          for (let i = updated.length - 1; i >= 0; i--) {
-            if (updated[i].role === 'ai') {
-              aiIndex = i;
-              break;
-            }
-          }
+        if (aiIndex < 0 || aiIndex >= updated.length || updated[aiIndex]?.role !== 'ai') {
+          aiIndex = updated.length - 1;
+        }
+        if (aiIndex < 0 || aiIndex >= updated.length || updated[aiIndex]?.role !== 'ai') {
+          updated.push({ role: 'ai', text: '' });
+          aiIndex = updated.length - 1;
         }
 
         const message = { role: 'ai', text, ...(links && links.length ? { links } : {}) };
-        if (aiIndex === -1) {
-          updated.push(message);
-          aiMessageIndexRef.current = updated.length - 1;
-        } else {
-          updated[aiIndex] = message;
-          aiMessageIndexRef.current = aiIndex;
-        }
+        updated[aiIndex] = message;
+        aiMessageIndexRef.current = aiIndex;
         return updated;
       });
     };
@@ -78,8 +74,14 @@ export default function AiAssistant() {
           groundingLinks = links.length ? links : groundingLinks;
         }
 
-        updateAiMessage(accumulatedText || "I'm thinking...", groundingLinks);
+        const now = performance.now();
+        if (now - lastStreamUpdateRef.current > 100) {
+          updateAiMessage(accumulatedText || "I'm thinking...", groundingLinks);
+          lastStreamUpdateRef.current = now;
+        }
       }
+
+      updateAiMessage(accumulatedText || "I'm thinking...", groundingLinks);
 
       if (!accumulatedText) {
         updateAiMessage("I'm sorry, I couldn't process that request.", groundingLinks);
