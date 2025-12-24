@@ -31,17 +31,23 @@ export default function AiAssistant() {
     const updateAiMessage = (text: string, links?: GroundingLink[]) => {
       setConversation(prev => {
         const updated = [...prev];
-        let aiIndex = aiMessageIndexRef.current ?? updated.length - 1;
+        const lastIndex = updated.length - 1;
+        const existingIndex = aiMessageIndexRef.current ?? lastIndex;
+        const hasValidExisting = existingIndex >= 0 && existingIndex <= lastIndex && updated[existingIndex]?.role === 'ai';
 
-        if (aiIndex < 0 || aiIndex >= updated.length || updated[aiIndex]?.role !== 'ai') {
-          aiIndex = updated.length - 1;
-        }
-        if (aiIndex < 0 || aiIndex >= updated.length || updated[aiIndex]?.role !== 'ai') {
-          updated.push({ role: 'ai', text: '' });
-          aiIndex = updated.length - 1;
+        let aiIndex = hasValidExisting ? existingIndex : -1;
+
+        if (aiIndex === -1) {
+          const lastIsAi = lastIndex >= 0 && updated[lastIndex]?.role === 'ai';
+          if (lastIsAi) {
+            aiIndex = lastIndex;
+          } else {
+            updated.push({ role: 'ai' as const, text: '' });
+            aiIndex = updated.length - 1;
+          }
         }
 
-        const message = { role: 'ai', text, ...(links && links.length ? { links } : {}) };
+        const message = { role: 'ai' as const, text, ...(links && links.length ? { links } : {}) };
         updated[aiIndex] = message;
         aiMessageIndexRef.current = aiIndex;
         return updated;
