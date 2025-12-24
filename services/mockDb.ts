@@ -11,12 +11,12 @@ const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 /**
  * Safely parse JSON from localStorage, clearing the key on failure.
  */
-const safeParse = <T>(key: string, fallback: T): T => {
+const safeParse = <T extends object | any[]>(key: string, fallback: T): T => {
   const raw = localStorage.getItem(key);
   if (!raw) return fallback;
   try {
     const parsed = JSON.parse(raw);
-    if (parsed === null || typeof parsed !== 'object') {
+    if (parsed === null || (typeof parsed !== 'object' && !Array.isArray(parsed))) {
       localStorage.removeItem(key);
       return fallback;
     }
