@@ -8,6 +8,9 @@ const ORDERS_KEY = 'dhobighat_orders';
 // Helper to simulate network delay
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
+/**
+ * Safely parse JSON from localStorage, clearing the key on failure.
+ */
 const safeParse = <T>(key: string, fallback: T): T => {
   const raw = localStorage.getItem(key);
   if (!raw) return fallback;
