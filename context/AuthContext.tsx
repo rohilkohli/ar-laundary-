@@ -3,6 +3,8 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, UserRole } from '../types';
 import { mockLogin } from '../services/mockDb';
 
+const SESSION_KEY = 'dhobighat_session';
+
 interface AuthContextType {
   user: User | null;
   loading: boolean;
@@ -19,9 +21,14 @@ export const AuthProvider = ({ children }: { children?: React.ReactNode }) => {
 
   useEffect(() => {
     // Check local storage for persisted session
-    const storedUser = localStorage.getItem('dhobighat_session');
+    const storedUser = localStorage.getItem(SESSION_KEY);
     if (storedUser) {
-      setUser(JSON.parse(storedUser));
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch (error) {
+        console.error('Failed to parse stored session', error);
+        localStorage.removeItem(SESSION_KEY);
+      }
     }
     setLoading(false);
   }, []);
@@ -31,7 +38,7 @@ export const AuthProvider = ({ children }: { children?: React.ReactNode }) => {
     try {
       const loggedInUser = await mockLogin(email, role);
       setUser(loggedInUser);
-      localStorage.setItem('dhobighat_session', JSON.stringify(loggedInUser));
+      localStorage.setItem(SESSION_KEY, JSON.stringify(loggedInUser));
     } catch (error) {
       console.error("Login failed", error);
       alert("Login failed. Please try again.");
@@ -42,7 +49,7 @@ export const AuthProvider = ({ children }: { children?: React.ReactNode }) => {
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('dhobighat_session');
+    localStorage.removeItem(SESSION_KEY);
   };
 
   return (
