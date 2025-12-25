@@ -9,7 +9,7 @@ export default {
     "./context/**/*.{js,ts,jsx,tsx}",
     "./services/**/*.{js,ts,jsx,tsx}",
     "./constants.ts",
-    "./types.ts"
+    "./types.ts",
   ],
   theme: {
     extend: {},
